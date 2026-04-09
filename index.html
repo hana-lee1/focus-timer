@@ -313,6 +313,92 @@
     background: #ff5555;
   }
 
+  /* Install hint modal */
+  .install-modal {
+    background: #0f0f12;
+    border: 1px solid #2a2a2a;
+    border-radius: 20px;
+    padding: 2rem 1.8rem;
+    width: calc(100vw - 2.5rem);
+    max-width: 420px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+    text-align: center;
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .install-modal, .install-modal * {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .install-title {
+    font-size: 1.35rem;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 0.5rem;
+  }
+  .install-sub {
+    font-size: 0.92rem;
+    color: #9a9a9a;
+    margin-bottom: 1.6rem;
+    line-height: 1.5;
+  }
+  .install-steps {
+    background: #18181b;
+    border-radius: 12px;
+    padding: 1.1rem 1rem;
+    margin-bottom: 1.2rem;
+    text-align: left;
+  }
+  .install-platform {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #ffaa00;
+    letter-spacing: 0.08em;
+    margin-bottom: 0.5rem;
+  }
+  .install-step {
+    font-size: 0.92rem;
+    color: #d0d0d0;
+    line-height: 1.7;
+    display: flex;
+    gap: 0.5rem;
+    align-items: baseline;
+  }
+  .install-step .num {
+    color: #6a6a6a;
+    font-weight: 700;
+    font-size: 0.8rem;
+    min-width: 1em;
+  }
+  .install-step .icon {
+    display: inline-block;
+    font-weight: 700;
+    color: #ffaa00;
+    padding: 0 0.3em;
+  }
+  .install-divider {
+    height: 1px;
+    background: #2a2a2a;
+    margin: 0.8rem 0;
+  }
+  .install-close {
+    background: #fff;
+    color: #0a0a0a;
+    border: none;
+    border-radius: 999px;
+    padding: 1em 1.5em;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    width: 100%;
+    cursor: pointer;
+    min-height: 52px;
+    -webkit-appearance: none;
+    appearance: none;
+    transition: transform 0.15s ease;
+  }
+  .install-close:active {
+    transform: scale(0.97);
+  }
+
   .modal-actions {
     display: flex;
     flex-direction: column;
@@ -451,8 +537,27 @@
       <div class="modal-title" id="modalTitle"></div>
       <div class="modal-actions">
         <button class="modal-btn cancel" id="cancelBtn">더 집중하기</button>
-        <button class="modal-btn leave" id="leaveBtn">그래도 나가기</button>
+        <button class="modal-btn leave" id="leaveBtn">앱에서 편하게 쓰기</button>
       </div>
+    </div>
+  </div>
+
+  <!-- Install hint modal — shown when user taps "앱에서 편하게 쓰기" -->
+  <div class="modal-backdrop" id="installModal" style="background: rgba(0,0,0,0.7);">
+    <div class="install-modal">
+      <div class="install-title">앱처럼 설치하기</div>
+      <div class="install-sub">홈 화면에 추가하면<br>앱처럼 한 번에 열 수 있어</div>
+      <div class="install-steps" id="iosSteps">
+        <div class="install-platform">iPhone · Safari</div>
+        <div class="install-step"><span class="num">1.</span><span>하단 <span class="icon">⎋</span> 공유 버튼 누르기</span></div>
+        <div class="install-step"><span class="num">2.</span><span><span class="icon">＋</span> "홈 화면에 추가" 선택</span></div>
+      </div>
+      <div class="install-steps" id="androidSteps">
+        <div class="install-platform">Android · Chrome</div>
+        <div class="install-step"><span class="num">1.</span><span>우상단 <span class="icon">⋮</span> 메뉴 열기</span></div>
+        <div class="install-step"><span class="num">2.</span><span>"홈 화면에 추가" 선택</span></div>
+      </div>
+      <button class="install-close" id="installCloseBtn">확인</button>
     </div>
   </div>
 
@@ -633,31 +738,31 @@
     const t = `<span class="highlight">${formatHMS(seconds)}</span>`;
     if (seconds < 60) return {
       title: `아직 1분도 안 됐는데<br>벌써 나간다고?`,
-      cancel: '더 집중하기', leave: '그래도 나가기'
+      cancel: '더 집중하기', leave: '앱에서 편하게 쓰기'
     };
     if (seconds < 300) return {
       title: `${t}<br>5분도 못 채웠잖아`,
-      cancel: '더 집중하기', leave: '그래도 나가기'
+      cancel: '더 집중하기', leave: '앱에서 편하게 쓰기'
     };
     if (seconds < 900) return {
       title: `${t}밖에 안 했는데<br>벌써 나간다고?`,
-      cancel: '더 집중하기', leave: '그래도 나가기'
+      cancel: '더 집중하기', leave: '앱에서 편하게 쓰기'
     };
     if (seconds < 1800) return {
       title: `${t}<br>이제 좀 붙는 타이밍이잖아`,
-      cancel: '계속 가기', leave: '그래도 나가기'
+      cancel: '계속 가기', leave: '앱에서 편하게 쓰기'
     };
     if (seconds < 3600) return {
       title: `${t}이나 쌓았는데<br>여기서 접는다고?`,
-      cancel: '계속 가기', leave: '그래도 나가기'
+      cancel: '계속 가기', leave: '앱에서 편하게 쓰기'
     };
     if (seconds < 5400) return {
       title: `${t}<br>1시간 넘게 버텼는데 아깝잖아`,
-      cancel: '더 밀어붙이기', leave: '그래도 나가기'
+      cancel: '더 밀어붙이기', leave: '앱에서 편하게 쓰기'
     };
     return {
       title: `${t} 동안 잘 버텼어<br>진짜 나갈 거야?`,
-      cancel: '마무리 제대로', leave: '이제 진짜 나가기'
+      cancel: '마무리 제대로', leave: '앱에서 편하게 쓰기'
     };
   }
 
@@ -682,17 +787,48 @@
   stopBtn.addEventListener('click', showModal);
   cancelBtn.addEventListener('click', hideModal);
   leaveBtn.addEventListener('click', () => {
-    allowLeave = true;
-    saveStats();
-    window.close();
-    setTimeout(() => { window.location.href = 'about:blank'; }, 100);
+    hideModal();
+    showInstallModal();
+  });
+
+  // ---------- Install hint modal ----------
+  const installModal = document.getElementById('installModal');
+  const installCloseBtn = document.getElementById('installCloseBtn');
+  const iosSteps = document.getElementById('iosSteps');
+  const androidSteps = document.getElementById('androidSteps');
+
+  function showInstallModal() {
+    // Show only the relevant platform steps
+    const ua = navigator.userAgent;
+    const isIOS = /iPhone|iPad|iPod/.test(ua);
+    const isAndroid = /Android/.test(ua);
+    if (isIOS) {
+      iosSteps.style.display = '';
+      androidSteps.style.display = 'none';
+    } else if (isAndroid) {
+      iosSteps.style.display = 'none';
+      androidSteps.style.display = '';
+    } else {
+      iosSteps.style.display = '';
+      androidSteps.style.display = '';
+    }
+    installModal.classList.add('show');
+  }
+  function hideInstallModal() {
+    installModal.classList.remove('show');
+  }
+  installCloseBtn.addEventListener('click', hideInstallModal);
+  installModal.addEventListener('click', (e) => {
+    if (e.target === installModal) hideInstallModal();
   });
 
   modal.addEventListener('click', (e) => {
     if (e.target === modal) hideModal();
   });
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && modal.classList.contains('show')) hideModal();
+    if (e.key !== 'Escape') return;
+    if (modal.classList.contains('show')) hideModal();
+    if (installModal.classList.contains('show')) hideInstallModal();
   });
 
   // Warn on tab close / navigation
