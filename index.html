@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="집중 타이머">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#0a0a0a">
+<meta name="format-detection" content="telephone=no">
+<title>집중 타이머</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;600;800&display=swap" rel="stylesheet">
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+    touch-action: none;
+  }
+
+  body {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0a0a0a;
+    color: #f5f5f5;
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding:
+      max(3vh, env(safe-area-inset-top))
+      max(4vw, env(safe-area-inset-right))
+      max(3vh, env(safe-area-inset-bottom))
+      max(4vw, env(safe-area-inset-left));
+  }
+
+  .spacer { flex: 1; }
+
+  /* Stats bar */
+  .stats-bar {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    gap: 1.2rem;
+    font-size: 0.78rem;
+    font-weight: 400;
+    color: #5a5a5a;
+    letter-spacing: 0.02em;
+    font-variant-numeric: tabular-nums;
+    padding: 0.5rem 0 0;
+    flex-wrap: wrap;
+  }
+  .stats-bar .stat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    white-space: nowrap;
+  }
+  .stats-bar .stat .label {
+    color: #4a4a4a;
+    font-size: 0.72rem;
+  }
+  .stats-bar .stat .val {
+    color: #9a9a9a;
+    font-weight: 600;
+  }
+  .stats-bar .stat.leaves.has-leaves .val {
+    color: #ff6666;
+  }
+
+  .eye-wrap {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    transform-origin: center;
+    transition: transform 0.12s cubic-bezier(0.4, 0, 0.6, 1);
+  }
+
+  .eye-wrap.blink {
+    transform: scaleY(0.04);
+  }
+
+  /* Angry eye — when user returns from leave */
+  .eye-wrap.angry svg {
+    animation: angryFlash 0.6s ease-out;
+  }
+  @keyframes angryFlash {
+    0%, 100% { filter: none; }
+    30%, 70% {
+      filter: sepia(1) saturate(8) hue-rotate(-30deg) brightness(1.1)
+              drop-shadow(0 0 30px rgba(255, 40, 40, 0.8));
+    }
+  }
+
+  svg {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  #pupilGroup {
+    transition: transform 0.08s ease-out;
+  }
+
+  .timer {
+    font-size: clamp(1.2rem, 5.5vw, 2.4rem);
+    font-weight: 300;
+    letter-spacing: 0.01em;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    margin-top: 3vh;
+  }
+
+  .timer #time {
+    font-weight: 800;
+    color: #fff;
+    margin-right: 0.35em;
+  }
+
+  .timer .label {
+    color: #8a8a8a;
+  }
+
+  .stop-btn {
+    background: transparent;
+    border: 1px solid #2a2a2a;
+    color: #6a6a6a;
+    padding: 1em 2.4em;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 400;
+    letter-spacing: 0.05em;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: 48px;
+  }
+
+  .stop-btn:active {
+    color: #c44;
+    border-color: #552222;
+    transform: scale(0.97);
+  }
+
+  /* Warning modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(120, 0, 0, 0.35);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .modal-backdrop.show { display: flex; }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+
+  .modal {
+    background: #1a0505;
+    border: 2px solid #cc2222;
+    border-radius: 20px;
+    padding: 2rem 1.8rem;
+    width: calc(100vw - 2.5rem);
+    max-width: 420px;
+    box-shadow: 0 0 60px rgba(204, 34, 34, 0.4), 0 20px 60px rgba(0, 0, 0, 0.6);
+    animation: shake 0.4s ease-in-out;
+    text-align: center;
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .modal, .modal * {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .modal-icon {
+    font-size: 2.6rem;
+    color: #ff3333;
+    margin-bottom: 0.6rem;
+    font-weight: 900;
+  }
+
+  .modal-title {
+    font-size: clamp(1.1rem, 5vw, 1.5rem);
+    font-weight: 800;
+    color: #ff5555;
+    margin-bottom: 1.6rem;
+    line-height: 1.4;
+  }
+
+  .modal-title #modalTime,
+  .modal-title .highlight {
+    color: #ffaa00;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Penalty overlay — when user returns from leaving the tab */
+  .penalty-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(60, 0, 0, 0.75);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 1.5rem;
+    animation: fadeIn 0.3s ease-out;
+  }
+  .penalty-overlay.show { display: flex; }
+
+  .penalty-box {
+    text-align: center;
+    max-width: 420px;
+    width: 100%;
+    animation: shake 0.5s ease-in-out;
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+  .penalty-box, .penalty-box * {
+    font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  .penalty-eye {
+    font-size: 4rem;
+    line-height: 1;
+    margin-bottom: 1rem;
+    filter: drop-shadow(0 0 20px rgba(255, 60, 60, 0.9));
+  }
+
+  .penalty-title {
+    font-size: clamp(1.6rem, 7vw, 2.4rem);
+    font-weight: 800;
+    color: #ff4444;
+    margin-bottom: 1rem;
+    line-height: 1.3;
+    text-shadow: 0 0 20px rgba(255, 60, 60, 0.5);
+  }
+
+  .penalty-sub {
+    font-size: clamp(1rem, 4vw, 1.2rem);
+    color: #ffaaaa;
+    margin-bottom: 0.6rem;
+    font-weight: 400;
+  }
+  .penalty-sub .val {
+    color: #ffcc00;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .penalty-streak {
+    font-size: 0.92rem;
+    color: #cc7777;
+    margin-bottom: 1.8rem;
+    font-weight: 300;
+  }
+  .penalty-streak .val {
+    color: #ff8844;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .penalty-btn {
+    padding: 1em 2.5em;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 700;
+    background: #ff3333;
+    color: #fff;
+    border: none;
+    border-radius: 999px;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: 52px;
+    min-width: 200px;
+    box-shadow: 0 0 40px rgba(255, 50, 50, 0.5);
+    transition: transform 0.15s ease;
+  }
+  .penalty-btn:active {
+    transform: scale(0.96);
+    background: #ff5555;
+  }
+
+  .modal-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.7rem;
+    margin-top: 0.5rem;
+  }
+
+  .modal-btn {
+    padding: 1em 1.5em;
+    font-family: inherit;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 999px;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s ease;
+    letter-spacing: 0.02em;
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: 52px;
+    width: 100%;
+  }
+
+  .modal-btn.cancel {
+    background: #ffffff;
+    color: #1a0505;
+  }
+  .modal-btn.cancel:active {
+    background: #ffd700;
+    transform: scale(0.97);
+  }
+
+  .modal-btn.leave {
+    background: transparent;
+    color: #ff8888;
+    border: 1px solid #552222;
+  }
+  .modal-btn.leave:active {
+    background: #2a0a0a;
+    color: #ff5555;
+    transform: scale(0.97);
+  }
+</style>
+</head>
+<body>
+
+  <div class="stats-bar">
+    <div class="stat">
+      <span class="label">오늘</span>
+      <span class="val" id="statToday">00:00:00</span>
+    </div>
+    <div class="stat">
+      <span class="label">최장</span>
+      <span class="val" id="statLongest">00:00:00</span>
+    </div>
+    <div class="stat leaves" id="statLeavesWrap">
+      <span class="label">이탈</span>
+      <span class="val" id="statLeaves">0회</span>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+
+  <div class="eye-wrap" id="eyeWrap">
+    <svg viewBox="0 0 1400 500" id="eye" preserveAspectRatio="xMidYMid meet">
+      <defs>
+        <clipPath id="eyeClip">
+          <path d="M 60 250 Q 700 -80 1340 250 Q 700 580 60 250 Z"/>
+        </clipPath>
+        <radialGradient id="irisGrad" cx="50%" cy="45%" r="55%">
+          <stop offset="0%" stop-color="#6a8bb0"/>
+          <stop offset="55%" stop-color="#2d4a68"/>
+          <stop offset="100%" stop-color="#0e1f30"/>
+        </radialGradient>
+        <radialGradient id="scleraGrad" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stop-color="#ffffff"/>
+          <stop offset="80%" stop-color="#e8e8ea"/>
+          <stop offset="100%" stop-color="#b8b8c0"/>
+        </radialGradient>
+      </defs>
+
+      <!-- sclera -->
+      <path d="M 60 250 Q 700 -80 1340 250 Q 700 580 60 250 Z"
+            fill="url(#scleraGrad)"/>
+
+      <!-- iris + pupil clipped to eye shape -->
+      <g clip-path="url(#eyeClip)">
+        <g id="pupilGroup">
+          <circle cx="700" cy="250" r="170" fill="url(#irisGrad)"/>
+          <circle cx="700" cy="250" r="168" fill="none" stroke="#0a1420" stroke-width="3"/>
+          <!-- iris texture lines -->
+          <g stroke="#1a3550" stroke-width="1.5" opacity="0.6" fill="none">
+            <circle cx="700" cy="250" r="140"/>
+            <circle cx="700" cy="250" r="120"/>
+            <circle cx="700" cy="250" r="100"/>
+          </g>
+          <!-- pupil -->
+          <circle cx="700" cy="250" r="82" fill="#000"/>
+          <!-- highlights -->
+          <ellipse cx="660" cy="210" rx="26" ry="20" fill="#ffffff" opacity="0.95"/>
+          <circle cx="735" cy="270" r="10" fill="#ffffff" opacity="0.55"/>
+        </g>
+      </g>
+
+      <!-- eye outline and eyelid shadow -->
+      <path d="M 60 250 Q 700 -80 1340 250 Q 700 580 60 250 Z"
+            fill="none" stroke="#000" stroke-width="5"/>
+      <!-- upper lid shadow -->
+      <path d="M 60 250 Q 700 -80 1340 250"
+            fill="none" stroke="#000" stroke-width="10" opacity="0.35"/>
+      <!-- lashes -->
+      <g stroke="#000" stroke-width="3" stroke-linecap="round">
+        <line x1="280" y1="95" x2="275" y2="55"/>
+        <line x1="400" y1="60" x2="398" y2="15"/>
+        <line x1="550" y1="35" x2="552" y2="-10"/>
+        <line x1="700" y1="22" x2="700" y2="-25"/>
+        <line x1="850" y1="35" x2="848" y2="-10"/>
+        <line x1="1000" y1="60" x2="1002" y2="15"/>
+        <line x1="1120" y1="95" x2="1125" y2="55"/>
+      </g>
+    </svg>
+  </div>
+
+  <div class="timer">
+    <span id="time">00:00:00</span><span class="label">동안 집중함</span>
+  </div>
+
+  <div class="spacer"></div>
+
+  <button class="stop-btn" id="stopBtn">종료</button>
+
+  <!-- Warning modal -->
+  <div class="modal-backdrop" id="modal">
+    <div class="modal">
+      <div class="modal-icon">⚠</div>
+      <div class="modal-title" id="modalTitle"></div>
+      <div class="modal-actions">
+        <button class="modal-btn cancel" id="cancelBtn">더 집중하기</button>
+        <button class="modal-btn leave" id="leaveBtn">그래도 나가기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Penalty overlay — shown when user returns from leaving the tab -->
+  <div class="penalty-overlay" id="penaltyOverlay">
+    <div class="penalty-box">
+      <div class="penalty-eye">👁</div>
+      <div class="penalty-title">어딜 갔다 온 거야?</div>
+      <div class="penalty-sub"><span class="val" id="penaltyAway">00:00:00</span> 동안 자리 비움</div>
+      <div class="penalty-streak">연속 집중 <span class="val" id="penaltyStreak">00:00:00</span>에서 끊김</div>
+      <button class="penalty-btn" id="penaltyBtn">다시 집중할게</button>
+    </div>
+  </div>
+
+<script>
+  // ---------- Storage & Stats ----------
+  const STORAGE_KEY = 'focusTimer.stats.v1';
+
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function loadStats() {
+    let data = {};
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) data = JSON.parse(raw);
+    } catch {}
+    // Daily reset
+    if (data.date !== todayKey()) {
+      data.date = todayKey();
+      data.todayTotal = 0;
+      data.todayLeaves = 0;
+    }
+    data.longestStreak = data.longestStreak || 0;
+    return data;
+  }
+
+  function saveStats() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); } catch {}
+  }
+
+  const stats = loadStats();
+  let sessionFocusTime = 0;  // seconds accumulated in this page load (all streaks combined)
+  let currentStreak = 0;     // seconds in current unbroken streak (resets on tab hide)
+  let tabHiddenAt = null;
+  let lastBrokenStreak = 0;
+
+  // ---------- Format helpers ----------
+  function formatHMS(secs) {
+    secs = Math.max(0, Math.floor(secs));
+    const h = String(Math.floor(secs / 3600)).padStart(2, '0');
+    const m = String(Math.floor((secs % 3600) / 60)).padStart(2, '0');
+    const s = String(secs % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  }
+
+  // ---------- Timer tick ----------
+  const timeEl = document.getElementById('time');
+  const statTodayEl = document.getElementById('statToday');
+  const statLongestEl = document.getElementById('statLongest');
+  const statLeavesEl = document.getElementById('statLeaves');
+  const statLeavesWrap = document.getElementById('statLeavesWrap');
+
+  function updateDisplay() {
+    timeEl.textContent = formatHMS(sessionFocusTime);
+    statTodayEl.textContent = formatHMS(stats.todayTotal);
+    statLongestEl.textContent = formatHMS(stats.longestStreak);
+    statLeavesEl.textContent = `${stats.todayLeaves}회`;
+    if (stats.todayLeaves > 0) statLeavesWrap.classList.add('has-leaves');
+    else statLeavesWrap.classList.remove('has-leaves');
+  }
+  updateDisplay();
+
+  function tick() {
+    if (document.visibilityState !== 'visible') return;
+    sessionFocusTime += 1;
+    currentStreak += 1;
+    stats.todayTotal += 1;
+    if (currentStreak > stats.longestStreak) {
+      stats.longestStreak = currentStreak;
+    }
+    if (sessionFocusTime % 10 === 0) saveStats();
+    updateDisplay();
+  }
+  setInterval(tick, 1000);
+
+  // ---------- Pupil tracking ----------
+  const pupil = document.getElementById('pupilGroup');
+  const svg = document.getElementById('eye');
+  const maxOffsetX = 110;
+  const maxOffsetY = 50;
+
+  let targetX = 0, targetY = 0;
+  let currentX = 0, currentY = 0;
+  let lastInteraction = 0;
+
+  function setTargetFromClient(clientX, clientY) {
+    const rect = svg.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = clientX - cx;
+    const dy = clientY - cy;
+    const maxDist = Math.max(window.innerWidth, window.innerHeight) / 1.8;
+    const dist = Math.min(Math.sqrt(dx*dx + dy*dy), maxDist);
+    const ratio = dist / maxDist;
+    const angle = Math.atan2(dy, dx);
+    targetX = Math.cos(angle) * maxOffsetX * ratio;
+    targetY = Math.sin(angle) * maxOffsetY * ratio;
+    lastInteraction = Date.now();
+  }
+
+  document.addEventListener('mousemove', (e) => setTargetFromClient(e.clientX, e.clientY));
+  document.addEventListener('touchmove', (e) => {
+    if (e.touches[0]) setTargetFromClient(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches[0]) setTargetFromClient(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+
+  // Device tilt tracking (iOS/Android)
+  function handleOrientation(e) {
+    if (e.beta == null || e.gamma == null) return;
+    // gamma: left-right tilt (-90 to 90), beta: front-back (-180 to 180)
+    const gx = Math.max(-30, Math.min(30, e.gamma)) / 30;
+    const gy = Math.max(-30, Math.min(30, (e.beta - 45))) / 30;
+    targetX = gx * maxOffsetX;
+    targetY = gy * maxOffsetY;
+    lastInteraction = Date.now();
+  }
+
+  // iOS 13+ requires permission — ask on first tap
+  function requestOrientationPermission() {
+    if (typeof DeviceOrientationEvent !== 'undefined' &&
+        typeof DeviceOrientationEvent.requestPermission === 'function') {
+      DeviceOrientationEvent.requestPermission()
+        .then(state => {
+          if (state === 'granted') {
+            window.addEventListener('deviceorientation', handleOrientation);
+          }
+        })
+        .catch(() => {});
+    } else if (typeof DeviceOrientationEvent !== 'undefined') {
+      window.addEventListener('deviceorientation', handleOrientation);
+    }
+  }
+  document.addEventListener('click', requestOrientationPermission, { once: true });
+  document.addEventListener('touchend', requestOrientationPermission, { once: true });
+
+  // Idle wander — when no interaction for a while, slowly look around
+  let wanderPhase = Math.random() * Math.PI * 2;
+  function updatePupil() {
+    const idleFor = Date.now() - lastInteraction;
+    if (idleFor > 2000) {
+      wanderPhase += 0.008;
+      targetX = Math.cos(wanderPhase) * maxOffsetX * 0.55;
+      targetY = Math.sin(wanderPhase * 0.7) * maxOffsetY * 0.55;
+    }
+    // Smooth lerp toward target
+    currentX += (targetX - currentX) * 0.12;
+    currentY += (targetY - currentY) * 0.12;
+    pupil.style.transform = `translate(${currentX.toFixed(1)}px, ${currentY.toFixed(1)}px)`;
+    requestAnimationFrame(updatePupil);
+  }
+  requestAnimationFrame(updatePupil);
+
+  // ---------- Blink (every 10s) ----------
+  const eyeWrap = document.getElementById('eyeWrap');
+  function blink() {
+    eyeWrap.classList.add('blink');
+    setTimeout(() => eyeWrap.classList.remove('blink'), 130);
+  }
+  setInterval(blink, 10000);
+
+  // ---------- Exit warning messages (time-tiered) ----------
+  function getExitContent(seconds) {
+    const t = `<span class="highlight">${formatHMS(seconds)}</span>`;
+    if (seconds < 60) return {
+      title: `아직 1분도 안 됐는데<br>벌써 나간다고?`,
+      cancel: '더 집중하기', leave: '그래도 나가기'
+    };
+    if (seconds < 300) return {
+      title: `${t}<br>5분도 못 채웠잖아`,
+      cancel: '더 집중하기', leave: '그래도 나가기'
+    };
+    if (seconds < 900) return {
+      title: `${t}밖에 안 했는데<br>벌써 나간다고?`,
+      cancel: '더 집중하기', leave: '그래도 나가기'
+    };
+    if (seconds < 1800) return {
+      title: `${t}<br>이제 좀 붙는 타이밍이잖아`,
+      cancel: '계속 가기', leave: '그래도 나가기'
+    };
+    if (seconds < 3600) return {
+      title: `${t}이나 쌓았는데<br>여기서 접는다고?`,
+      cancel: '계속 가기', leave: '그래도 나가기'
+    };
+    if (seconds < 5400) return {
+      title: `${t}<br>1시간 넘게 버텼는데 아깝잖아`,
+      cancel: '더 밀어붙이기', leave: '그래도 나가기'
+    };
+    return {
+      title: `${t} 동안 잘 버텼어<br>진짜 나갈 거야?`,
+      cancel: '마무리 제대로', leave: '이제 진짜 나가기'
+    };
+  }
+
+  // ---------- Exit modal ----------
+  const modal = document.getElementById('modal');
+  const modalTitleEl = document.getElementById('modalTitle');
+  const stopBtn = document.getElementById('stopBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
+  const leaveBtn = document.getElementById('leaveBtn');
+
+  function showModal() {
+    const content = getExitContent(sessionFocusTime);
+    modalTitleEl.innerHTML = content.title;
+    cancelBtn.textContent = content.cancel;
+    leaveBtn.textContent = content.leave;
+    modal.classList.add('show');
+  }
+  function hideModal() {
+    modal.classList.remove('show');
+  }
+
+  stopBtn.addEventListener('click', showModal);
+  cancelBtn.addEventListener('click', hideModal);
+  leaveBtn.addEventListener('click', () => {
+    allowLeave = true;
+    saveStats();
+    window.close();
+    setTimeout(() => { window.location.href = 'about:blank'; }, 100);
+  });
+
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) hideModal();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('show')) hideModal();
+  });
+
+  // Warn on tab close / navigation
+  let allowLeave = false;
+  window.addEventListener('beforeunload', (e) => {
+    saveStats();
+    if (allowLeave) return;
+    e.preventDefault();
+    e.returnValue = '';
+  });
+
+  // ---------- Leave penalty (visibilitychange) ----------
+  const penaltyOverlay = document.getElementById('penaltyOverlay');
+  const penaltyAwayEl = document.getElementById('penaltyAway');
+  const penaltyStreakEl = document.getElementById('penaltyStreak');
+  const penaltyBtn = document.getElementById('penaltyBtn');
+
+  function showPenalty(awaySeconds) {
+    penaltyAwayEl.textContent = formatHMS(awaySeconds);
+    penaltyStreakEl.textContent = formatHMS(lastBrokenStreak);
+    penaltyOverlay.classList.add('show');
+    // Angry eye flash
+    eyeWrap.classList.remove('angry');
+    void eyeWrap.offsetWidth; // force reflow to restart animation
+    eyeWrap.classList.add('angry');
+    setTimeout(() => eyeWrap.classList.remove('angry'), 800);
+  }
+  penaltyBtn.addEventListener('click', () => {
+    penaltyOverlay.classList.remove('show');
+  });
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      tabHiddenAt = Date.now();
+      lastBrokenStreak = currentStreak;
+      // Only count as a leave if they had some streak going
+      if (currentStreak > 3) {
+        stats.todayLeaves += 1;
+      }
+      currentStreak = 0;
+      saveStats();
+    } else {
+      // Returning
+      if (tabHiddenAt !== null) {
+        const awayMs = Date.now() - tabHiddenAt;
+        tabHiddenAt = null;
+        const awaySeconds = Math.floor(awayMs / 1000);
+        // Only show penalty if they were away more than ~1.5s (filters quick tab flickers)
+        if (awaySeconds >= 2 && lastBrokenStreak > 3) {
+          showPenalty(awaySeconds);
+        }
+        updateDisplay();
+      }
+      requestWakeLock();
+    }
+  });
+
+  // ---------- Wake Lock (keep screen on) ----------
+  let wakeLock = null;
+  async function requestWakeLock() {
+    try {
+      if ('wakeLock' in navigator) {
+        wakeLock = await navigator.wakeLock.request('screen');
+      }
+    } catch (err) {
+      // Silent fail — wake lock not critical
+    }
+  }
+  requestWakeLock();
+</script>
+</body>
+</html>
